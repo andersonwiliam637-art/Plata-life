@@ -1,0 +1,11 @@
+'use client';
+import Link from 'next/link';
+import { FormEvent, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { createClient } from '@/lib/supabase/client';
+
+export default function RegisterPage() {
+  const [name,setName]=useState(''); const [email,setEmail]=useState(''); const [password,setPassword]=useState(''); const [message,setMessage]=useState(''); const [busy,setBusy]=useState(false); const router=useRouter();
+  async function submit(e:FormEvent){e.preventDefault();setBusy(true);setMessage('');try{const supabase=createClient();const {data,error}=await supabase.auth.signUp({email,password,options:{data:{full_name:name}}});if(error)throw error;if(data.session){router.replace('/dashboard');router.refresh();}else{setMessage('Cuenta creada. Revisa tu correo para confirmar la dirección antes de iniciar sesión.');}}catch(err){setMessage(err instanceof Error?err.message:'No se pudo crear la cuenta.');}finally{setBusy(false);}}
+  return <main className="auth-page"><Link className="brand" href="/"><span className="brand-mark">P</span> plata<span className="brand-ai">AI</span></Link><form className="auth-card" onSubmit={submit}><span className="eyebrow">TU DINERO, MÁS CLARO</span><h1>Crea tu cuenta</h1><p>Empieza con una base sencilla y privada.</p><label>Nombre<input required autoComplete="name" maxLength={80} value={name} onChange={e=>setName(e.target.value)} placeholder="Cómo te llamas"/></label><label>Correo electrónico<input type="email" required autoComplete="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="tu@correo.com"/></label><label>Contraseña<input type="password" required minLength={8} autoComplete="new-password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="Mínimo 8 caracteres"/></label><button className="button full" disabled={busy}>{busy?'Creando cuenta…':'Crear cuenta gratis'}</button>{message&&<p className="form-message" role="status">{message}</p>}<p className="auth-switch">¿Ya tienes cuenta? <Link href="/login">Iniciar sesión</Link></p><p className="auth-note">Al continuar, aceptas que PLATA AI está en desarrollo. No ingreses datos bancarios ni información sensible en esta versión inicial.</p></form></main>
+}
