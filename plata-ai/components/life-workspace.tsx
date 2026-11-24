@@ -1,6 +1,6 @@
 'use client';
 import { useCallback, useEffect, useState } from 'react';
-import { Activity, ArrowDownLeft, ArrowUpRight, CheckCircle2, CircleAlert, Dumbbell, LoaderCircle, Plus, Wallet } from 'lucide-react';
+import { Activity, ArrowDownLeft, ArrowUpRight, CheckCircle2, CircleAlert, Dumbbell, Plus, Wallet } from 'lucide-react';
 import FinancePlanning from '@/components/finance-planning';
 import AccountManager, { type FinancialAccount } from '@/components/account-manager';
 
@@ -19,7 +19,7 @@ export default function LifeWorkspace(){
  useEffect(()=>{void load();},[load]);
  const summary={...monthlySummary,balance:monthlySummary.income-monthlySummary.expense};
  async function createAccountFromManager(account:FinancialAccount){setAccounts(current=>[...current,account]);setSelectedAccountId(account.id);setNotice('Cuenta creada correctamente.');}
- function archiveAccountFromManager(accountId:string){setAccounts(current=>{const next=current.filter(account=>account.id!==accountId);setSelectedAccountId(selected=>selected===accountId?(next[0]?.id??''):selected);return next;});}
+ function archiveAccountFromManager(accountId:string){const next=accounts.filter(account=>account.id!==accountId);setAccounts(next);if(selectedAccountId===accountId)setSelectedAccountId(next[0]?.id??'');}
  async function addTransaction(e:React.FormEvent){
   e.preventDefault();setSaving(true);setNotice('');setError('');
   try{
