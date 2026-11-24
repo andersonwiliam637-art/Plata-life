@@ -11,24 +11,38 @@ export async function GET() {
 
   try {
     const { sql, appUserId } = await getAppUserContext(user);
-    const rows = await sql`
-      SELECT
-        t.id,
-        t.transaction_type AS kind,
-        t.amount::text AS amount,
-        COALESCE(c.name, 'Otros') AS category,
-        t.description AS note,
-        t.transaction_date::text AS occurred_on,
-        a.name AS account_name,
-        t.currency
-      FROM financial_transactions t
-      LEFT JOIN transaction_categories c ON c.id = t.category_id
-      INNER JOIN financial_accounts a ON a.id = t.account_id
-      WHERE t.user_id = ${appUserId}
-      ORDER BY t.transaction_date DESC, t.created_at DESC
-      LIMIT 100
-    `;
-    return NextResponse.json({ transactions: rows });
+    const [rows, summaryRows] = await Promise.all([
+      sql`
+        SELECT
+          t.id,
+          t.transaction_type AS kind,
+          t.amount::text AS amount,
+          COALESCE(c.name, 'Otros') AS category,
+          t.description AS note,
+          t.transaction_date::text AS occurred_on,
+          a.name AS account_name,
+          t.currency
+        FROM financial_transactions t
+        LEFT JOIN transaction_categories c ON c.id = t.category_id
+        INNER JOIN financial_accounts a ON a.id = t.account_id
+        WHERE t.user_id = ${appUserId}
+        ORDER BY t.transaction_date DESC, t.created_at DESC
+        LIMIT 100
+      `,
+      sql`
+        SELECT
+          COALESCE(SUM(amount) FILTER (WHERE transaction_type = 'income'), 0)::text AS income,
+          COALESCE(SUM(amount) FILTER (WHERE transaction_type = 'expense'), 0)::text AS expense
+        FROM financial_transactions
+        WHERE user_id = ${appUserId}
+          AND transaction_date >= date_trunc('month', now() AT TIME ZONE 'America/Guatemala')::date
+          AND transaction_date < (date_trunc('month', now() AT TIME ZONE 'America/Guatemala') + interval '1 month')::date
+      `,
+    ]);
+    return NextResponse.json({
+      transactions: rows,
+      summary: summaryRows[0] ?? { income: '0', expense: '0' },
+    });
   } catch (error) {
     console.error('transactions GET failed', error);
     return NextResponse.json(
