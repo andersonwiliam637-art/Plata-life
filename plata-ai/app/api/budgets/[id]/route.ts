@@ -34,11 +34,19 @@ export async function PATCH(request: NextRequest, context: Context) {
   try {
     const { sql, appUserId } = await getAppUserContext(user);
     const categoryId = category ? await getOrCreateCategory(sql, appUserId, category, 'expense') : null;
+    const endRows = endsOn ? [] : await sql`
+      SELECT CASE
+        WHEN ${period} = 'weekly' THEN (${startsOn}::date + interval '6 days')::date::text
+        WHEN ${period} = 'monthly' THEN ((${startsOn}::date + interval '1 month') - interval '1 day')::date::text
+        ELSE ((${startsOn}::date + interval '1 year') - interval '1 day')::date::text
+      END AS period_end
+    `;
+    const effectiveEndOn = endsOn ?? String(endRows[0]?.period_end ?? startsOn);
     const rows = await sql`
       UPDATE budgets
       SET name = ${name}, amount_limit = ${amount.toFixed(2)},
         period = ${period}, starts_on = ${startsOn},
-        ends_on = ${endsOn}, category_id = ${categoryId}
+        ends_on = ${effectiveEndOn}, category_id = ${categoryId}
       WHERE id = ${id} AND user_id = ${appUserId}
       RETURNING id, name, amount_limit::text AS amount_limit, currency,
         period, starts_on::text AS starts_on, ends_on::text AS ends_on, category_id
