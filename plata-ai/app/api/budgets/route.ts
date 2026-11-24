@@ -65,10 +65,18 @@ export async function POST(request: NextRequest) {
   try {
     const { sql, appUserId } = await getAppUserContext(user);
     const categoryId = category ? await getOrCreateCategory(sql, appUserId, category, 'expense') : null;
+    const endRows = endsOn ? [] : await sql`
+      SELECT CASE
+        WHEN ${period} = 'weekly' THEN (${startsOn}::date + interval '6 days')::date::text
+        WHEN ${period} = 'monthly' THEN ((${startsOn}::date + interval '1 month') - interval '1 day')::date::text
+        ELSE ((${startsOn}::date + interval '1 year') - interval '1 day')::date::text
+      END AS period_end
+    `;
+    const effectiveEndOn = endsOn ?? String(endRows[0]?.period_end ?? startsOn);
     const rows = await sql`
       INSERT INTO budgets (user_id, category_id, name, amount_limit, currency, period, starts_on, ends_on)
       VALUES (${appUserId}, ${categoryId}, ${name},
-        ${amount.toFixed(2)}, 'GTQ', ${period}, ${startsOn}, ${endsOn})
+        ${amount.toFixed(2)}, 'GTQ', ${period}, ${startsOn}, ${effectiveEndOn})
       RETURNING id, name, amount_limit::text AS amount_limit, currency, period,
         starts_on::text AS starts_on, ends_on::text AS ends_on, category_id
     `;
