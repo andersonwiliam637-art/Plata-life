@@ -5,7 +5,7 @@ export async function getAppUserContext(user: User) {
   const sql = getSql();
   const rawName = user.user_metadata?.full_name;
   const displayName = typeof rawName === 'string'
-    ? rawName.replace(/[$u0000-$u001f$u007f]/g, '').trim().slice(0, 80) || null
+    ? rawName.replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, 80) || null
     : null;
   const email = typeof user.email === 'string' ? user.email.trim().toLowerCase() : null;
 
@@ -68,7 +68,7 @@ export async function getOrCreateCategory(
 }
 
 export function isValidIsoDate(value: string): boolean {
-  if (!/^$d{4}-$d{2}-$d{2}$/.test(value)) return false;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
   const [year, month, day] = value.split('-').map(Number);
   const parsed = new Date(Date.UTC(year, month - 1, day));
   return parsed.getUTCFullYear() === year &&
