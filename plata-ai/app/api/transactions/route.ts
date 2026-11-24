@@ -114,7 +114,7 @@ export async function POST(request: NextRequest) {
       VALUES
         (${appUserId}, ${accountId}, ${categoryId}, ${kind},
          ${amount.toFixed(2)}, 'GTQ', ${note || null}, ${date})
-      RETURNING id, transaction_type AS kind, amount::text AS amount,
+      RETURNING id, account_id, transaction_type AS kind, amount::text AS amount,
         description AS note, transaction_date::text AS occurred_on, currency
     `;
 
@@ -122,6 +122,7 @@ export async function POST(request: NextRequest) {
       transaction: {
         ...rows[0],
         category,
+        account_id: accountId,
         account_name: (await sql`SELECT name FROM financial_accounts WHERE id = ${accountId} AND user_id = ${appUserId} LIMIT 1`)[0]?.name ?? 'Cuenta',
       },
     }, { status: 201 });
