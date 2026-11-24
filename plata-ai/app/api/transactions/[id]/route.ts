@@ -30,6 +30,9 @@ export async function PATCH(request: NextRequest, context: Context) {
   const date = String(input.occurred_on ?? '');
   const requestedAccountId = String(input.account_id ?? '').trim();
 
+  if (requestedAccountId && !uuidPattern.test(requestedAccountId)) {
+    return NextResponse.json({ error: 'La cuenta seleccionada no es válida.' }, { status: 400 });
+  }
   if (kind !== 'income' && kind !== 'expense') {
     return NextResponse.json({ error: 'Tipo de movimiento no válido.' }, { status: 400 });
   }
