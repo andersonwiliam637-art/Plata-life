@@ -62,7 +62,7 @@ export async function PATCH(request: NextRequest, context: Context) {
           transaction_date = ${date},
           updated_at = now()
       WHERE id = ${id} AND user_id = ${appUserId}
-      RETURNING id, transaction_type AS kind, amount::text AS amount,
+      RETURNING id, account_id, transaction_type AS kind, amount::text AS amount,
         description AS note, transaction_date::text AS occurred_on, currency
     `;
     if (!rows[0]) return NextResponse.json({ error: 'Movimiento no encontrado.' }, { status: 404 });
