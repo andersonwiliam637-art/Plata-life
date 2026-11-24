@@ -15,6 +15,7 @@ export async function GET() {
       sql`
         SELECT
           t.id,
+          t.account_id,
           t.transaction_type AS kind,
           t.amount::text AS amount,
           COALESCE(c.name, 'Otros') AS category,
@@ -73,6 +74,7 @@ export async function POST(request: NextRequest) {
   const category = String(input.category ?? '').trim();
   const note = String(input.note ?? '').trim().slice(0, 160);
   const date = String(input.occurred_on ?? '');
+  const requestedAccountId = String(input.account_id ?? '').trim();
 
   if (kind !== 'income' && kind !== 'expense') {
     return NextResponse.json({ error: 'El tipo de movimiento no es válido.' }, { status: 400 });
@@ -93,7 +95,18 @@ export async function POST(request: NextRequest) {
 
   try {
     const { sql, appUserId } = await getAppUserContext(user);
-    const accountId = await getOrCreateDefaultAccount(sql, appUserId);
+    let accountId: string;
+    if (requestedAccountId) {
+      const owned = await sql`
+        SELECT id FROM financial_accounts
+        WHERE id = ${requestedAccountId} AND user_id = ${appUserId} AND is_archived = false
+        LIMIT 1
+      `;
+      if (!owned[0]?.id) return NextResponse.json({ error: 'La cuenta seleccionada no está disponible.' }, { status: 400 });
+      accountId = String(owned[0].id);
+    } else {
+      accountId = await getOrCreateDefaultAccount(sql, appUserId);
+    }
     const categoryId = await getOrCreateCategory(sql, appUserId, category, kind);
     const rows = await sql`
       INSERT INTO financial_transactions
@@ -109,7 +122,7 @@ export async function POST(request: NextRequest) {
       transaction: {
         ...rows[0],
         category,
-        account_name: 'Efectivo',
+        account_name: (await sql`SELECT name FROM financial_accounts WHERE id = ${accountId} AND user_id = ${appUserId} LIMIT 1`)[0]?.name ?? 'Cuenta',
       },
     }, { status: 201 });
   } catch (error) {
