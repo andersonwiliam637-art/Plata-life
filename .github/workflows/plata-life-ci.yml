@@ -26,6 +26,11 @@ jobs:
           cache-dependency-path: plata-ai/package.json
       - name: Install dependencies
         run: npm install --no-audit --no-fund
+
+      - name: Dependency security audit
+        run: |
+          npm audit --json > audit-report.json || true
+          node -e 'const r=require("./audit-report.json"); for (const [name,v] of Object.entries(r.vulnerabilities || {})) { const via=(v.via || []).map(x => typeof x === "string" ? x : x.name + ": " + x.title); console.log(JSON.stringify({name,severity:v.severity,range:v.range,via,fixAvailable:v.fixAvailable})); }'
       - name: Lint
         run: npm run lint
       - name: Production build
