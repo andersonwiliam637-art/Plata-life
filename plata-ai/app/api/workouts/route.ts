@@ -54,13 +54,15 @@ export async function POST(request: NextRequest) {
   const durationMinutes = Number(input.duration_minutes);
   const notes = String(input.notes ?? '').trim().slice(0, 500);
   const completedOn = String(input.completed_on ?? '');
+  const routineId = input.routine_id ? String(input.routine_id) : null;
 
   if (
     title.length < 2 ||
     !Number.isInteger(durationMinutes) ||
     durationMinutes < 1 ||
     durationMinutes > 600 ||
-    !isValidIsoDate(completedOn)
+    !isValidIsoDate(completedOn) ||
+    (routineId !== null && !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(routineId))
   ) {
     return NextResponse.json(
       { error: 'Añade un nombre, duración de 1 a 600 minutos y una fecha válida.' },
@@ -70,6 +72,51 @@ export async function POST(request: NextRequest) {
 
   try {
     const { sql, appUserId } = await getAppUserContext(user);
+    if (routineId) {
+      const routine = await sql`
+        SELECT id, name FROM workout_routines
+        WHERE id = ${routineId} AND user_id = ${appUserId} AND is_archived = false
+        LIMIT 1
+      `;
+      if (!routine[0]) return NextResponse.json({ error: 'Rutina no encontrada.' }, { status: 404 });
+
+      const routineRows = await sql`
+        WITH session_start AS (
+          SELECT (${completedOn}::date::timestamp AT TIME ZONE 'America/Guatemala') AS started_at
+        ),
+        created_session AS (
+          INSERT INTO workout_sessions
+            (user_id, routine_id, title, started_at, ended_at, duration_seconds, notes)
+          SELECT
+            ${appUserId}, r.id, ${title || routine[0].name},
+            session_start.started_at,
+            session_start.started_at + make_interval(mins => ${durationMinutes}),
+            ${durationMinutes * 60}, ${notes || null}
+          FROM workout_routines r
+          CROSS JOIN session_start
+          WHERE r.id = ${routineId} AND r.user_id = ${appUserId} AND r.is_archived = false
+          RETURNING id, title, duration_seconds, notes, started_at, created_at
+        ),
+        copied_exercises AS (
+          INSERT INTO workout_session_exercises
+            (session_id, exercise_id, exercise_name, sort_order, sets_completed, notes)
+          SELECT
+            created_session.id, routine_exercises.exercise_id,
+            routine_exercises.exercise_name, routine_exercises.sort_order,
+            '[]'::jsonb, routine_exercises.notes
+          FROM created_session
+          JOIN routine_exercises ON routine_exercises.routine_id = ${routineId}
+          RETURNING id
+        )
+        SELECT id, title, duration_seconds / 60 AS duration_minutes, notes,
+          (started_at AT TIME ZONE 'America/Guatemala')::date::text AS completed_on,
+          created_at
+        FROM created_session
+      `;
+      if (!routineRows[0]) return NextResponse.json({ error: 'No se pudo iniciar la sesión.' }, { status: 409 });
+      return NextResponse.json({ workout: routineRows[0] }, { status: 201 });
+    }
+
     const rows = await sql`
       WITH session_start AS (
         SELECT (${completedOn}::date::timestamp AT TIME ZONE 'America/Guatemala') AS started_at
