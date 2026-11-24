@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'El tipo de movimiento no es válido.' }, { status: 400 });
   }
   const allowedCategories = kind === 'income' ? incomeCategories : expenseCategories;
-  if (
+  if ((requestedAccountId && !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(requestedAccountId)) ||
     !Number.isFinite(amount) ||
     amount <= 0 ||
     amount > 100000000 ||
