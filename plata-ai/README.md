@@ -1,41 +1,67 @@
 # PLATA LIFE — finanzas personales + fitness
 
-Base de producto para Guatemala, móvil primero y en español. Este hito incorpora registro de movimientos financieros y entrenamientos, resumen mensual calculado desde registros reales, endpoints autenticados y una base PostgreSQL en Neon. No contiene un chatbot ni simula recomendaciones de IA.
+Aplicación web mobile-first para Guatemala, con interfaz en español y moneda base GTQ. PLATA LIFE combina control de dinero, cuentas, presupuestos, metas de ahorro y registro de actividad física.
 
-## Arquitectura actual
-- **Aplicación:** Next.js 15 + TypeScript.
-- **Base de datos de aplicación:** Neon PostgreSQL (`DATABASE_URL`, exclusivamente servidor).
-- **Sesiones e identidad temporal de esta iteración:** Supabase Auth. Neon no ofrece por sí solo un proveedor de identidad; esta separación evita exponer datos y permite sustituir el proveedor de autenticación en una fase posterior sin mover la base de datos.
-- **Datos:** `transactions`, `workouts`, `wellness_goals` y tabla mínima de identidad futura `app_users`.
-- **Seguridad API:** exige sesión, usa consultas parametrizadas, valida entradas y añade `user_id` desde la sesión; nunca confía en un `user_id` enviado por el cliente.
+## Arquitectura
+
+- **Frontend y API:** Next.js 15 App Router + TypeScript + React 19.
+- **Despliegue previsto:** Vercel, conectado a este repositorio de GitHub.
+- **Autenticación:** Supabase Auth. El servidor valida cada sesión con `getUser()`.
+- **Base de datos de aplicación:** Neon PostgreSQL. La conexión `DATABASE_URL` existe solo en el servidor.
+- **Identidad interna:** `app_users` enlaza `auth_provider='supabase'` y el UUID de Supabase con el UUID interno usado por las tablas de Neon.
+
+## Esquema Neon verificado
+
+El proyecto Neon conectado de PLATA LIFE contiene estas 11 tablas: `app_users`, `financial_accounts`, `financial_transactions`, `transaction_categories`, `budgets`, `financial_goals`, `exercises`, `workout_routines`, `routine_exercises`, `workout_sessions` y `workout_session_exercises`.
+
+**Advertencia de migraciones:** `neon/migrations/0001_plata_life.sql` es un esquema antiguo del starter y NO representa este esquema real de 11 tablas. No lo ejecutes sobre la base actual. Las API de esta rama se alinean con las tablas verificadas en el proyecto Neon existente. Una instalación nueva necesita una migración inicial nueva, revisada y probada por separado.
+
+## Funcionalidad conectada en esta rama de trabajo
+
+- Registro e inicio de sesión por Supabase Auth.
+- Registro de ingresos y gastos en cuentas propiedad de la persona autenticada.
+- Resumen mensual de ingresos y gastos calculado por Neon sobre el ledger completo, no solo sobre la lista reciente.
+- Administración de cuentas: efectivo, banco, ahorro, crédito y otras. Archivar conserva el historial.
+- Edición y eliminación de movimientos y sesiones con comprobación del propietario.
+- Registro de sesiones de entrenamiento con duración, fecha y notas.
+- Creación, visualización y eliminación de presupuestos y metas financieras.
+- Las cifras del landing son ilustrativas y se identifican como tales; el panel autenticado usa datos de la cuenta.
 
 ## Configuración local
+
 Requisitos: Node.js 20.9+ y npm.
 
-1. Crea un proyecto PostgreSQL en Neon y copia la cadena de conexión pooled desde **Connect**.
-2. En Neon SQL Editor, ejecuta `neon/migrations/0001_plata_life.sql`.
-3. Copia `.env.example` a `.env.local`. Completa `DATABASE_URL`, `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
-4. En Supabase Auth, configura Site URL y Redirect URLs para `http://localhost:3000` y `/auth/callback`.
-5. Ejecuta `npm install`, `npm run dev` y visita `http://localhost:3000`.
-6. Verifica registro/login; añade un ingreso, un gasto y un entrenamiento; refresca la página; confirma que los datos persisten y que otra cuenta no puede verlos.
+1. Copia `.env.example` a `.env.local`.
+2. Configura `DATABASE_URL` con la conexión pooled de Neon. Nunca la marques como `NEXT_PUBLIC_*`.
+3. Configura `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON_KEY` (o la publishable key compatible).
+4. En Supabase Auth, configura Site URL y Redirect URLs para el origen local y `/auth/callback`.
+5. En `plata-ai/`, ejecuta `npm install`, `npm run dev` y visita `http://localhost:3000`.
 
-## Endpoints implementados
-- `GET /api/transactions` y `POST /api/transactions`
-- `GET /api/workouts` y `POST /api/workouts`
+## Endpoints principales
 
-Las rutas limitan resultados a los registros del usuario autenticado. Los endpoints devuelven errores explícitos cuando falta la migración o la conexión, no datos falsos.
+- `/api/transactions`: GET/POST.
+- `/api/transactions/[id]`: PATCH/DELETE.
+- `/api/accounts`: GET/POST.
+- `/api/accounts/[id]`: PATCH y archivado mediante DELETE.
+- `/api/budgets` y `/api/budgets/[id]`: GET/POST/PATCH/DELETE.
+- `/api/goals` y `/api/goals/[id]`: GET/POST/PATCH/DELETE.
+- `/api/workouts`: GET/POST.
+- `/api/workouts/[id]`: PATCH/DELETE.
+- `/api/routines` y `/api/routines/[id]`: gestión de rutinas.
+- `/api/routines/[id]/exercises` y `/api/routines/[id]/exercises/[exerciseId]`: ejercicios dentro de una rutina.
 
-## Estado honesto de entrega
-**Implementado en el código:** UI conjunta de finanzas + fitness, formularios, resúmenes derivados de los registros, endpoints y migración SQL para Neon.
+Todas las rutas de datos verifican la sesión Supabase, resuelven el usuario interno Neon en el servidor y filtran por ese ID. No se confía en un `user_id` recibido del navegador. Las consultas se parametrizan mediante el cliente Neon.
 
-**No verificado aquí:** conexión a una cuenta real de Neon/Supabase, instalación de dependencias, compilación, pruebas automatizadas, despliegue, pruebas de aislamiento con dos usuarios o auditoría de seguridad externa. No se debe ingresar información financiera real ni anunciarlo como listo para producción hasta pasar estas pruebas.
+## Límites de seguridad y estado de producción
 
-## Diseño visual elegido — PLATA LIFE
-La interfaz sigue el primer concepto aprobado: fondo verde-negro, acentos verde neón, tarjetas oscuras, bordes discretos y enfoque móvil. Se añadió una identidad gráfica propia para el futuro asistente (símbolo de destello/bot), sin usar logotipos de terceros ni fingir que la IA ya está conectada. Las cifras de la landing son ilustrativas; el dashboard autenticado calcula cifras desde los registros del usuario.
+El esquema Neon actual tiene RLS desactivado en las 11 tablas. La defensa en esta arquitectura depende de que Neon solo sea accesible por `DATABASE_URL` del servidor y de que cada ruta aplique siempre el filtro de propietario. Esto requiere pruebas específicas multiusuario antes de producción. No pongas `DATABASE_URL` en el cliente ni en variables `NEXT_PUBLIC_*`.
 
-## Próximas fases recomendadas
-1. Configurar credenciales y ejecutar build + pruebas de integración en un entorno de prueba.
-2. Añadir pruebas automatizadas de aislamiento multiusuario y validación, borrado/exportación de datos, límites/rate limiting y logging sin datos sensibles.
-3. Completar categorías personalizables, cuentas, presupuestos, rutinas con series/repeticiones y objetivos compartidos de bienestar.
-4. Agregar controles de privacidad, política de datos, backups/restauración y monitoreo.
-5. Solo después, evaluar IA con una tarea concreta y medible; no conectar información financiera a modelos por defecto.
+**No está certificado para producción todavía.** Aún falta ejecutar instalación, lint, build, pruebas de rutas con dos usuarios, pruebas de persistencia en el Neon del propietario, revisión de seguridad, límites de tasa, exportación/borrado de datos, backups con una restauración probada, política de privacidad y términos. Las credenciales reales de Supabase/Neon no están presentes en el repositorio y no se han solicitado en el chat.
+
+## CI y despliegue
+
+La rama `feat/plata-life-neon-alignment` incorpora un workflow GitHub Actions para instalar, ejecutar ESLint y compilar Next.js. La aplicación aún no se ha desplegado ni conectado a un proyecto Vercel de PLATA LIFE en el equipo actualmente conectado. El despliegue debe hacerse primero como Preview, con variables de Preview, y validarse antes de conectar el dominio de producción.
+
+## IA
+
+El asistente y la lectura inteligente de recibos son conceptos futuros. No hay un modelo IA conectado en esta versión. No se envían datos financieros personales a un modelo.
