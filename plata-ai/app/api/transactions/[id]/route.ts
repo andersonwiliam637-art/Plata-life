@@ -28,6 +28,7 @@ export async function PATCH(request: NextRequest, context: Context) {
   const category = String(input.category ?? '').trim();
   const note = String(input.note ?? '').trim().slice(0, 160);
   const date = String(input.occurred_on ?? '');
+  const requestedAccountId = String(input.account_id ?? '').trim();
 
   if (kind !== 'income' && kind !== 'expense') {
     return NextResponse.json({ error: 'Tipo de movimiento no válido.' }, { status: 400 });
@@ -41,11 +42,22 @@ export async function PATCH(request: NextRequest, context: Context) {
   try {
     const { sql, appUserId } = await getAppUserContext(user);
     const categoryId = await getOrCreateCategory(sql, appUserId, category, kind);
+    let accountId: string | null = null;
+    if (requestedAccountId) {
+      const owned = await sql`
+        SELECT id FROM financial_accounts
+        WHERE id = ${requestedAccountId} AND user_id = ${appUserId} AND is_archived = false
+        LIMIT 1
+      `;
+      if (!owned[0]?.id) return NextResponse.json({ error: 'La cuenta seleccionada no está disponible.' }, { status: 400 });
+      accountId = String(owned[0].id);
+    }
     const rows = await sql`
       UPDATE financial_transactions
       SET transaction_type = ${kind},
           amount = ${amount.toFixed(2)},
           category_id = ${categoryId},
+          account_id = COALESCE(${accountId}, account_id),
           description = ${note || null},
           transaction_date = ${date},
           updated_at = now()
