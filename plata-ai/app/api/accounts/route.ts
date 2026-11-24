@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAppUserContext } from '@/lib/db/user';
+import { getAppUserContext, getOrCreateDefaultAccount } from '@/lib/db/user';
 import { authenticatedUser, unauthorized } from '@/lib/db/auth';
 
 const accountTypes = new Set(['cash', 'bank', 'credit', 'savings', 'other']);
@@ -10,6 +10,7 @@ export async function GET() {
   if (!user) return unauthorized();
   try {
     const { sql, appUserId } = await getAppUserContext(user);
+    await getOrCreateDefaultAccount(sql, appUserId);
     const rows = await sql`
       SELECT
         a.id, a.name, a.account_type, a.currency,
