@@ -47,6 +47,8 @@ Requisitos: Node.js 20.9+ y npm.
 - `/api/goals` y `/api/goals/[id]`: GET/POST/PATCH/DELETE.
 - `/api/workouts`: GET/POST.
 - `/api/workouts/[id]`: PATCH/DELETE.
+- `/api/routines` y `/api/routines/[id]`: gestión de rutinas.
+- `/api/routines/[id]/exercises` y `/api/routines/[id]/exercises/[exerciseId]`: ejercicios dentro de una rutina.
 
 Todas las rutas de datos verifican la sesión Supabase, resuelven el usuario interno Neon en el servidor y filtran por ese ID. No se confía en un `user_id` recibido del navegador. Las consultas se parametrizan mediante el cliente Neon.
 
