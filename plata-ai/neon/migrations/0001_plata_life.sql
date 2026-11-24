@@ -1,3 +1,11 @@
+-- LEGACY STARTER MIGRATION — DO NOT APPLY TO THE EXISTING PLATA LIFE NEON PROJECT.
+-- The live project uses a different, richer 11-table schema:
+-- app_users, financial_accounts, financial_transactions, transaction_categories,
+-- budgets, financial_goals, exercises, workout_routines, routine_exercises,
+-- workout_sessions, workout_session_exercises.
+-- This old bootstrap creates a different app_users structure and transactions/workouts tables.
+-- It is retained for historical reference only. It is NOT a migration path for the existing database.
+-- For a fresh Neon project, first author and validate a separate full schema migration.
 -- PLATA LIFE / Neon PostgreSQL schema. Run once in the Neon SQL Editor.
 -- Application access is scoped in every server route by the authenticated user's UUID.
 -- Keep DATABASE_URL server-only. Do not enable unauthenticated database access.
