@@ -1,19 +1,41 @@
-# Hito 5–7: PLATA LIFE y Neon
+# Hito Neon — modelo real de PLATA LIFE
 
-## Decisión de datos
-Neon es PostgreSQL administrado y almacena movimientos, entrenamientos y objetivos. La conexión se mantiene del lado del servidor. Esta entrega conserva Supabase Auth únicamente para identidad/sesión, no para guardar el ledger; se documenta como una decisión transitoria explícita.
+## Arquitectura
+Supabase Auth autentica a la persona. El servidor resuelve su sesión y relaciona el UUID de Supabase con el UUID interno de `app_users` en Neon. Neon almacena los movimientos, las cuentas, presupuestos, metas y registros de fitness.
 
-## Dominio inicial
-- `transactions`: ingresos y gastos en GTQ, categoría, nota y fecha.
-- `workouts`: sesión, duración, notas y fecha.
-- `wellness_goals`: base de datos para objetivos de finanzas, fitness o bienestar; las pantallas de gestión aún no están implementadas.
+La cadena `DATABASE_URL` se mantiene exclusivamente en el servidor. Ningún endpoint acepta un `user_id` del navegador como autoridad: las consultas obtienen el ID interno desde la sesión validada y filtran todos los registros por `user_id`.
 
-## Qué problema resuelve primero
-Evitar que la persona tenga que usar una app para gastos y otra para recordar si entrenó: ofrece registro manual rápido, resumen del mes y lista reciente. La integración es opcional a nivel de producto: una persona puede usar solo finanzas o solo fitness. No se calcula salud, dieta ni asesoría financiera personalizada.
+## Esquema Neon existente
+El proyecto de Neon verificado contiene once tablas:
+- `app_users`
+- `financial_accounts`
+- `financial_transactions`
+- `transaction_categories`
+- `budgets`
+- `financial_goals`
+- `exercises`
+- `workout_routines`
+- `routine_exercises`
+- `workout_sessions`
+- `workout_session_exercises`
 
-## Riesgos abiertos
-1. Las tablas de Neon no tienen RLS de Postgres habilitado en esta migración. El aislamiento depende del backend privado y de que todas las consultas filtren por el ID de sesión. Por eso las credenciales de Neon jamás deben llegar al navegador; son obligatorias las pruebas multiusuario y la revisión de todas las rutas.
-2. La identidad todavía depende de Supabase Auth. Neon no sustituye autenticación, correo ni recuperación de contraseña.
-3. Aún faltan edición/eliminación de movimientos, exportación, presupuestos, borrado de cuenta, controles de abuso, pruebas, términos y privacidad.
-4. Las estadísticas de entrenamiento son solo conteo y duración registrada; no equivalen a una evaluación médica ni a una recomendación de salud.
-5. No hay IA en este hito. Primero se valida que las personas registren datos y obtengan valor real.
+La migración `neon/migrations/0001_plata_life.sql` pertenece al prototipo inicial y crea una estructura distinta. Se mantiene como referencia histórica, no como migración para el proyecto existente. No ejecutar en la base actual ni tratarla como fuente de verdad.
+
+## Funcionalidad conectada en la rama de alineación
+- Ingresos y gastos; resumen mensual de la base completa.
+- Cuentas GTQ de efectivo, banco, ahorro, crédito y otras.
+- Presupuestos con periodo y cálculo de gasto por categoría o total.
+- Metas financieras con progreso.
+- Edición y borrado/archivo de registros con filtro de propietario.
+- Rutinas, ejercicios y sesiones asociadas a una rutina; al registrar una sesión se copian sus ejercicios.
+- Validación de payloads y consultas parametrizadas.
+
+## Riesgos y límites abiertos
+1. RLS está desactivado en las once tablas. El aislamiento depende de Neon privado y del filtro de propietario en cada API. No declarar la app segura hasta pasar pruebas multiusuario de todos los endpoints.
+2. No se ha probado una restauración de backups de Neon.
+3. Las transferencias entre cuentas, exportación de datos, cierre/borrado de cuenta, rate limits, bitácora de auditoría y cumplimiento legal siguen pendientes.
+4. Las métricas de fitness se limitan a registros; no son una evaluación médica ni recomendaciones de entrenamiento.
+5. No hay IA conectada. No enviar movimientos financieros a un modelo por defecto.
+
+## Criterio para abrir producción
+Build y lint correctos, pruebas de persistencia en staging, pruebas con dos cuentas independientes y negativos de acceso cruzado, validación de las reglas de negocio y revisión de seguridad. Solo después configurar el dominio y promover a Vercel Production.
