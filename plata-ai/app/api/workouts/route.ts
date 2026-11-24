@@ -8,20 +8,23 @@ export async function GET() {
 
   try {
     const { sql, appUserId } = await getAppUserContext(user);
-    const rows = await sql`
-      SELECT
-        id,
-        title,
-        COALESCE(duration_seconds, 0) / 60 AS duration_minutes,
-        notes,
-        (started_at AT TIME ZONE 'America/Guatemala')::date::text AS completed_on,
-        created_at
-      FROM workout_sessions
-      WHERE user_id = ${appUserId}
-      ORDER BY started_at DESC, created_at DESC
-      LIMIT 50
-    `;
-    return NextResponse.json({ workouts: rows });
+    const [rows, countRows] = await Promise.all([
+      sql`
+        SELECT
+          id,
+          title,
+          COALESCE(duration_seconds, 0) / 60 AS duration_minutes,
+          notes,
+          (started_at AT TIME ZONE 'America/Guatemala')::date::text AS completed_on,
+          created_at
+        FROM workout_sessions
+        WHERE user_id = ${appUserId}
+        ORDER BY started_at DESC, created_at DESC
+        LIMIT 50
+      `,
+      sql`SELECT COUNT(*)::int AS total FROM workout_sessions WHERE user_id = ${appUserId}`,
+    ]);
+    return NextResponse.json({ workouts: rows, totalCount: Number(countRows[0]?.total ?? 0) });
   } catch (error) {
     console.error('workouts GET failed', error);
     return NextResponse.json(
