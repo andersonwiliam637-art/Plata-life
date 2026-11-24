@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
   const type = String(input.account_type ?? 'cash');
   const currency = String(input.currency ?? 'GTQ').toUpperCase();
   const openingBalance = Number(input.opening_balance ?? 0);
-  if (name.length < 2 || !accountTypes.has(type) || !currencyPattern.test(currency) ||
+  if (name.length < 2 || !accountTypes.has(type) || currency !== 'GTQ' || !currencyPattern.test(currency) ||
       !Number.isFinite(openingBalance) || openingBalance < 0 || openingBalance > 1000000000) {
     return NextResponse.json({ error: 'Revisa el nombre, tipo, moneda y saldo inicial.' }, { status: 400 });
   }
