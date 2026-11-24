@@ -19,8 +19,10 @@ export async function GET() {
           a.opening_balance +
           COALESCE(SUM(
             CASE
-              WHEN t.transaction_type = 'income' THEN t.amount
-              WHEN t.transaction_type = 'expense' THEN -t.amount
+              WHEN a.account_type = 'credit' AND t.transaction_type = 'expense' THEN t.amount
+              WHEN a.account_type = 'credit' AND t.transaction_type = 'income' THEN -t.amount
+              WHEN a.account_type <> 'credit' AND t.transaction_type = 'income' THEN t.amount
+              WHEN a.account_type <> 'credit' AND t.transaction_type = 'expense' THEN -t.amount
               ELSE 0
             END
           ), 0)
